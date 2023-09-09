@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tic-Tac-Toe</title>
+    <script src="https://unpkg.com/htmx.org@1.9.4"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        body
+        {text-align: center;font-family: Helvetica, sans-serif;}.game
+        {display: flex;justify-content: center;}.square
+        {background: #fff;border: 1px solid #999;float: left;font-size: 34px;font-weight: bold;line-height: 44px;height: 44px;margin-right: -1px;margin-top: -1px;padding: 0;text-align: center;width: 44px;}.board-row:after
+        {clear: both;content: '';display: table;}.disabled
+        { pointer-events: none; opacity: 0.5; }
+    </style>
+</head>
+<body>
+    <div id="game-canvas" x-data="{ flag: canPlay() }">
+        <h1>Tic-Tac-Toe</h1>
+        {{if .Winner}}
+        <p>Winner: {{.Winner}}</p>
+        {{else}}
+        <p>Player's turn: {{.PlayerTurn}}</p>
+        {{end}}
+
+        <div class="game">
+            <div class="board" id="game-board" style="pointer-events: none">
+                {{$temp := .}}
+                {{range $i, $row := .Board}}
+                <div class="board-row">
+                    {{range $j, $cell := $row}}
+                    <!-- button GET via AJAX -->
+                    <button class="square"
+                            hx-get="/web/player/{{$temp.PlayerTurn}}/move?row={{$i}}&col={{$j}}"
+                            hx-swap="outerHTML"
+                            hx-target="#game-canvas">
+                        {{if $cell}}
+                        {{$cell}}
+                        {{end}}
+                    </button>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+        </div>
+
+        <br>
+        <div x-show="flag">
+            <!-- button DELETE via AJAX -->
+            <button id="reset-btn"
+                    hx-delete="/web/reset"
+                    hx-swap="outerHRML"
+                    hx-target="#game-canvas">
+                Reset
+            </button>
+            <p id="game-msg" style="margin: 15px;"></p>
+        </div>
+        <p x-show="!flag && xo != '-1'" style="margin: 15px;">Waiting for other player</p>
+        <p x-show="xo == '-1'" style="margin: 15px;">You're watching an active game</p>
+        <!-- Polling /web/updates for new moves -->
+        <div hx-get="/web/updates?lastUpdate={{.CreatedAt}}"
+             hx-on::before-request="checkTurns('{{.Counter}}')"
+             hx-trigger="every 0.5s"
+             hx-swap="innerHTML"
+             hx-target="#game-canvas">
+        </div>
+    </div>
+
+    <script>
+        var xo, gb = document.getElementById('game-board'),
+            gm = document.getElementById('game-msg'),
+            canPlay = () => ['1', '2'].includes(xo),
+            checkTurns = c => {
+                if ((c % 2 === 0 && xo === '1') || (c % 2 !== 0 && xo === '2')) {
+                    gb.style.pointerEvents = "auto"; gm.innerText = "Your turn to move";
+                } else {
+                    gb.style.pointerEvents = "none"; gm.innerText = "Waiting for other player to move";
+                }
+            }
+            // 'xo' tracks player's tick; page refresh disrupts the game.
+        window.onload = () => xo = '{{.Counter}}'
+    </script>
+</body>
+</html>
